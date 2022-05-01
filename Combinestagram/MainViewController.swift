@@ -46,14 +46,15 @@ class MainViewController: UIViewController {
   
   override func viewDidLoad() {
     super.viewDidLoad()
-    images
+    images.share()
+      .throttle(.milliseconds(500), scheduler: MainScheduler.instance)
       .subscribe(onNext: {[weak imagePreview] photos in
         guard let preview = imagePreview else { return }
         preview.image = photos.collage(size: preview.frame.size)
       })
       .disposed(by: disposeBag)
     
-    images
+    images.share()
       .subscribe(onNext: {[weak self] photos in
         self?.updateUI(photos: photos)
       }).disposed(by: disposeBag)
@@ -66,7 +67,6 @@ class MainViewController: UIViewController {
   @IBAction func actionSave() {
     guard let image = imagePreview.image else { return }
     PhotoWriter.save(image)
-      .asSingle()
       .subscribe(onSuccess: {[weak self] id in
         self?.showMessage("Saved with id: \(id)")
         self?.actionClear()
@@ -78,7 +78,7 @@ class MainViewController: UIViewController {
   
   @IBAction func actionAdd() {
     let photosViewController = storyboard!.instantiateViewController(withIdentifier: "PhotosViewController") as! PhotosViewController
-    photosViewController.selectedPhotos
+    photosViewController.selectedPhotos.share()
       .subscribe(onNext: {[weak self] newImage in
         guard let images = self?.images else { return }
         images.accept(images.value + [newImage])
