@@ -86,14 +86,27 @@ class ActivityController: UITableViewController {
   }
 
   func fetchEvents(repo: String) {
-    let response = Observable.from([repo])
+    let response = Observable.from(["https://api.github.com/search/repositories?q=language:swift&per_page=5"])
       .map { urlString -> URL in
-        return URL(string: "https://api.github.com/repos/\(urlString)/events")!
-      }.map { [weak self] url -> URLRequest in
+        return URL(string: urlString)!
+      }
+      .flatMap { url -> Observable<Any> in
+        return URLSession.shared.rx.json(url: url)
+      }
+      .flatMap { data -> Observable<String> in
+        guard let json = data as? [String: Any],
+        let items = json["items"] as? [[String: Any]] else { return Observable.empty() }
+
+        return Observable.from(items.map { $0["full_name"] as? String }.map { $0! })
+      }
+      .map { urlString -> URL in
+        return URL(string: "https://api.github.com/repos/\(urlString)/events?per_page=5")!
+      }
+      .map { [weak self] url -> URLRequest in
         var request = URLRequest(url: url)
-        if let modifiedHeader = self?.lastModified.value {
-          request.addValue(modifiedHeader, forHTTPHeaderField: "Last_Modified")
-        }
+//        if let modifiedHeader = self?.lastModified.value {
+//          request.addValue(modifiedHeader, forHTTPHeaderField: "Last_Modified")
+//        }
         return request
       }.flatMap { request -> Observable<(response: HTTPURLResponse, data: Data)> in
         return URLSession.shared.rx.response(request: request)
