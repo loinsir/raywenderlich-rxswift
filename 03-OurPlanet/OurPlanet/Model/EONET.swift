@@ -34,7 +34,7 @@ import Foundation
 import RxSwift
 import RxCocoa
 
-class EONET {
+class EONET: NSObject {
   static let API = "https://eonet.sci.gsfc.nasa.gov/api/v2.1"
   static let categoriesEndpoint = "/categories"
   static let eventsEndpoint = "/events"
@@ -74,12 +74,20 @@ class EONET {
       
       let request = URLRequest(url: finalURL)
       
-      return URLSession.shared.rx.response(request: request).map { (response: HTTPURLResponse, data: Data) -> T in
-        let decoder = self.jsonDecoder(contentIdentifier: contentIdentifier)
-        let envelope = try decoder.decode(EOEnvelope<T>.self, from: data)
-        return envelope.content
-      }
-
+      return URLSession(configuration: .ephemeral, delegate: EONET(), delegateQueue: nil)
+        .rx.response(request: request)
+        .map { (response: HTTPURLResponse, data: Data) -> T in
+          let decoder = self.jsonDecoder(contentIdentifier: contentIdentifier)
+          let envelope = try decoder.decode(EOEnvelope<T>.self, from: data)
+          return envelope.content
+        }
+      
+//      return URLSession.shared.rx.response(request: request).map { (response: HTTPURLResponse, data: Data) -> T in
+//        let decoder = self.jsonDecoder(contentIdentifier: contentIdentifier)
+//        let envelope = try decoder.decode(EOEnvelope<T>.self, from: data)
+//        return envelope.content
+//      }
+      
     } catch {
       return Observable.empty()
     }
@@ -88,9 +96,17 @@ class EONET {
   static var categories: Observable<[EOCategory]> = {
     let request: Observable<[EOCategory]> = EONET.request(endpoint: categoriesEndpoint, contentIdentifier: "categories")
     
-      return request
-        .map { categories in categories.sorted { $0.name < $1.name }}
-        .catchErrorJustReturn([])
-        .share(replay: 1, scope: .forever)
+    return request
+      .map { categories in categories.sorted { $0.name < $1.name }}
+      .catchErrorJustReturn([])
+      .share(replay: 1, scope: .forever)
   }()
+}
+
+extension EONET: URLSessionDelegate { // 이거 안하면 ssl 걸려서 서버 데이터 안받아진다ㅋㅇㅋ
+  func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
+    
+    //accept all certs when testing, perform default handling otherwise
+    completionHandler(.useCredential, URLCredential(trust: challenge.protectionSpace.serverTrust!))
+  }
 }

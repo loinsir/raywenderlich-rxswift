@@ -34,8 +34,6 @@
 	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>
-		<key>NSAllowsArbitraryLoadsInWebContentUsageDescription</key>
-		<dict/>
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
