@@ -35,12 +35,12 @@ import RxSwift
 import RxCocoa
 
 class CategoriesViewController: UIViewController, UITableViewDataSource, UITableViewDelegate {
-
+  
   @IBOutlet var tableView: UITableView!
   
   let categories = BehaviorRelay<[EOCategory]>(value: [])
   let disposeBag = DisposeBag()
-
+  
   override func viewDidLoad() {
     super.viewDidLoad()
     
@@ -55,10 +55,21 @@ class CategoriesViewController: UIViewController, UITableViewDataSource, UITable
     
     startDownload()
   }
-
+  
   func startDownload() {
     let eoCategories = EONET.categories
+    let downloadedEvents = EONET.events(forLast: 360)
+    
+    let updatedCategories = Observable.combineLatest(eoCategories, downloadedEvents) { (categories, events) -> [EOCategory] in
+      return categories.map { category in
+        var cat = category
+        cat.events = events.filter { $0.categories.contains(where: { $0.id == category.id }) }
+        return cat
+      }
+    }
+    
     eoCategories
+      .concat(updatedCategories)
       .bind(to: categories)
       .disposed(by: disposeBag)
   }
@@ -72,7 +83,8 @@ class CategoriesViewController: UIViewController, UITableViewDataSource, UITable
     let cell = tableView.dequeueReusableCell(withIdentifier: "categoryCell")!
     
     let category = categories.value[indexPath.row]
-    cell.textLabel?.text = category.name
+    cell.textLabel?.text = "\(category.name) (\(category.events.count))"
+    cell.accessoryType = (category.events.count > 0) ? .disclosureIndicator : .none
     cell.detailTextLabel?.text = category.description
     
     return cell

@@ -101,6 +101,22 @@ class EONET: NSObject {
       .catchErrorJustReturn([])
       .share(replay: 1, scope: .forever)
   }()
+  
+  private static func events(forLast days: Int, closed: Bool) -> Observable<[EOEvent]> {
+    let query: [String: Any] = [
+      "days": days,
+      "status": (closed ? "closed": "open")
+    ]
+    let request: Observable<[EOEvent]> = EONET.request(endpoint:
+    eventsEndpoint, query: query, contentIdentifier: "events")
+    return request.catchErrorJustReturn([])
+  }
+  
+  static func events(forLast days: Int = 360) -> Observable<[EOEvent]> {
+    let openEvents = events(forLast: days, closed: false)
+    let closedEvents = events(forLast: days, closed: true)
+    return openEvents.concat(closedEvents)
+  }
 }
 
 extension EONET: URLSessionDelegate { // 이거 안하면 ssl 걸려서 서버 데이터 안받아진다ㅋㅇㅋ
